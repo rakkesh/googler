@@ -1582,7 +1582,7 @@ class Result(object):
     def _print_metadata_and_abstract(self, abstract, metadata=None, indent=0):
         colors = self.colors
         try:
-            columns, _ = os.get_terminal_size()
+            _, columns = map(int, os.popen('stty size', 'r').read().split())
         except OSError:
             columns = 0
 
