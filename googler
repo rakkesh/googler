@@ -756,7 +756,7 @@ class GoogleConnection(object):
 
         payload = resp.read()
         try:
-            return gzip.decompress(payload).decode(u'utf-8')
+            return gzip.zlib.decompress(payload, gzip.zlib.MAX_WBITS|16).decode(u'utf-8')
         except OSError:
             # Not gzipped
             return payload.decode(u'utf-8')
@@ -2153,7 +2153,7 @@ def download_latest_googler(include_git=False):
                 raise httplib.HTTPException(response.reason)
             payload = response.read()
             try:
-                fp.write(gzip.decompress(payload))
+                fp.write(gzip.zlib.decompress(payload, gzip.zlib.MAX_WBITS|16))
             except OSError:
                 fp.write(payload)
     return git_ref, path
