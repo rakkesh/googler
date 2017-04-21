@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Copyright © 2008 Henri Hakkinen
 # Copyright © 2015-2017 Arun Prakash Jana <engineerarun@gmail.com>
@@ -1539,7 +1540,7 @@ class Result(object):
 
     Methods
     -------
-    print()
+    print2term()
     jsonizable_object()
     urltable()
 
@@ -1604,7 +1605,7 @@ class Result(object):
         if colors:
             print colors.reset,; sys.stdout.write(u'')
 
-    def print(self):
+    def print2term(self):
         u"""Print the result entry."""
         self._print_title_and_url(self.index, self.title, self.url)
         self._print_metadata_and_abstract(self.abstract, metadata=self.metadata)
@@ -1793,7 +1794,7 @@ class GooglerCmd(object):
             else:
                 sys.stderr.write(prelude)
                 for r in self.results:
-                    r.print()
+                    r.print2term()
 
     @require_keywords
     def fetch_and_display(self, prelude=u'\n', json_output=False, interactive=True):
@@ -2118,7 +2119,6 @@ def download_latest_googler(include_git=False):
          file.
 
     """
-    import urllib2, urllib
 
     if include_git:
         # Get SHA of latest commit on master
