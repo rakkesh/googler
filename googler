@@ -21,6 +21,7 @@ from __future__ import with_statement
 from __future__ import absolute_import
 import argparse
 import atexit
+import base64
 import collections
 import codecs
 import functools
@@ -52,16 +53,16 @@ except ImportError:
 
 try:
     import setproctitle
-    setproctitle.setproctitle(u'googler')
+    setproctitle.setproctitle('googler')
 except Exception:
     pass
 
-logging.basicConfig(format=u'[%(levelname)s] %(message)s')
+logging.basicConfig(format='[%(levelname)s] %(message)s')
 logger = logging.getLogger()
 
 
 def sigint_handler(signum, frame):
-    print >>sys.stderr, u'\nInterrupted.'
+    print >>sys.stderr, '\nInterrupted.'
     sys.exit(1)
 
 signal.signal(signal.SIGINT, sigint_handler)
@@ -69,22 +70,22 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 # Constants
 
-_VERSION_ = u'3.0'
+_VERSION_ = '3.3'
 
-COLORMAP = dict((k, u'\x1b[%sm' % v) for k, v in {
-    u'a': u'30', u'b': u'31', u'c': u'32', u'd': u'33',
-    u'e': u'34', u'f': u'35', u'g': u'36', u'h': u'37',
-    u'i': u'90', u'j': u'91', u'k': u'92', u'l': u'93',
-    u'm': u'94', u'n': u'95', u'o': u'96', u'p': u'97',
-    u'A': u'30;1', u'B': u'31;1', u'C': u'32;1', u'D': u'33;1',
-    u'E': u'34;1', u'F': u'35;1', u'G': u'36;1', u'H': u'37;1',
-    u'I': u'90;1', u'J': u'91;1', u'K': u'92;1', u'L': u'93;1',
-    u'M': u'94;1', u'N': u'95;1', u'O': u'96;1', u'P': u'97;1',
-    u'x': u'0', u'X': u'1', u'y': u'7', u'Y': u'7;1',
-}.items())
+COLORMAP = {k: '\x1b[%sm' % v for k, v in {
+    'a': '30', 'b': '31', 'c': '32', 'd': '33',
+    'e': '34', 'f': '35', 'g': '36', 'h': '37',
+    'i': '90', 'j': '91', 'k': '92', 'l': '93',
+    'm': '94', 'n': '95', 'o': '96', 'p': '97',
+    'A': '30;1', 'B': '31;1', 'C': '32;1', 'D': '33;1',
+    'E': '34;1', 'F': '35;1', 'G': '36;1', 'H': '37;1',
+    'I': '90;1', 'J': '91;1', 'K': '92;1', 'L': '93;1',
+    'M': '94;1', 'N': '95;1', 'O': '96;1', 'P': '97;1',
+    'x': '0', 'X': '1', 'y': '7', 'Y': '7;1',
+}.items()}
 
 # Disguise as Firefox on Ubuntu
-USER_AGENT = (u'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0')
+USER_AGENT = ('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:54.0) Gecko/20100101 Firefox/54.0')
 ua = True  # User Agent is enabled by default
 
 # Self-upgrade parameters
@@ -97,14 +98,14 @@ ua = True  # User Agent is enabled by default
 # before running `make install'.
 
 ENABLE_SELF_UPGRADE_MECHANISM = True
-API_REPO_BASE = u'https://api.github.com/repos/jarun/googler'
-RAW_DOWNLOAD_REPO_BASE = u'https://raw.githubusercontent.com/jarun/googler'
+API_REPO_BASE = 'https://api.github.com/repos/jarun/googler'
+RAW_DOWNLOAD_REPO_BASE = 'https://raw.githubusercontent.com/jarun/googler'
 
 
 # Global helper functions
 
 def open_url(url):
-    u"""Open an URL in the user's default web browser.
+    """Open an URL in the user's default web browser.
 
     Whether the browser's output (both stdout and stderr) are suppressed
     depends on the boolean attribute ``open_url.suppress_browser_output``.
@@ -112,10 +113,10 @@ def open_url(url):
     which means False if BROWSER is set to a known text-based browser --
     elinks, links, lynx or w3m; or True otherwise.
     """
-    if not hasattr(open_url, u'suppress_browser_output'):
-        open_url.suppress_browser_output = (os.getenv(u'BROWSER') not in
-                                            [u'elinks', u'links', u'lynx', u'w3m'])
-    logger.debug(u'Opening %s', url)
+    if not hasattr(open_url, 'suppress_browser_output'):
+        open_url.suppress_browser_output = (os.getenv('BROWSER') not in
+                                            ['elinks', 'links', 'lynx', 'w3m'])
+    logger.debug('Opening %s', url)
     if open_url.suppress_browser_output:
         _stderr = os.dup(2)
         os.close(2)
@@ -134,7 +135,7 @@ def open_url(url):
 
 
 def printerr(msg):
-    u"""Print message, verbatim, to stderr.
+    """Print message, verbatim, to stderr.
 
     ``msg`` could be any stringifiable value.
     """
@@ -142,24 +143,24 @@ def printerr(msg):
 
 
 def unwrap(text):
-    u"""Unwrap text."""
-    lines = text.split(u'\n')
-    result = u''
+    """Unwrap text."""
+    lines = text.split('\n')
+    result = ''
     for i in xrange(len(lines) - 1):
         result += lines[i]
         if not lines[i]:
             # Paragraph break
-            result += u'\n\n'
+            result += '\n\n'
         elif lines[i + 1]:
             # Next line is not paragraph break, add space
-            result += u' '
+            result += ' '
     # Handle last line
-    result += lines[-1] if lines[-1] else u'\n'
+    result += lines[-1] if lines[-1] else '\n'
     return result
 
 
 def check_stdout_encoding():
-    u"""Make sure stdout encoding is utf-8.
+    """Make sure stdout encoding is utf-8.
 
     If not, print error message and instructions, then exit with
     status 1.
@@ -167,19 +168,19 @@ def check_stdout_encoding():
     This function is a no-op on win32 because encoding on win32 is
     messy, and let's just hope for the best. /s
     """
-    if sys.platform == u'win32':
+    if sys.platform == 'win32':
         return
 
     # Use codecs.lookup to resolve text encoding alias
     encoding = codecs.lookup(sys.stdout.encoding).name
-    if encoding != u'utf-8':
+    if encoding != 'utf-8':
         locale_lang, locale_encoding = locale.getlocale()
         if locale_lang is None:
-            locale_lang = u'<unknown>'
+            locale_lang = '<unknown>'
         if locale_encoding is None:
-            locale_encoding = u'<unknown>'
-        ioencoding = os.getenv(u'PYTHONIOENCODING', u'not set')
-        sys.stderr.write(unwrap(textwrap.dedent(u"""\
+            locale_encoding = '<unknown>'
+        ioencoding = os.getenv('PYTHONIOENCODING', 'not set')
+        sys.stderr.write(unwrap(textwrap.dedent("""\
         stdout encoding '{encoding}' detected. googler requires utf-8 to
         work properly. The wrong encoding may be due to a non-UTF-8
         locale or an improper PYTHONIOENCODING. (For the record, your
@@ -200,7 +201,7 @@ def check_stdout_encoding():
 # Classes
 
 class TLS1_2Connection(HTTPSConnection):
-    u"""Overrides HTTPSConnection.connect to specify TLS version
+    """Overrides HTTPSConnection.connect to specify TLS version
 
     NOTE: TLS 1.2 is supported from Python 3.4
     """
@@ -213,26 +214,26 @@ class TLS1_2Connection(HTTPSConnection):
                                         self.timeout, self.source_address)
 
         # Optimizations not available on OS X
-        if not notweak and sys.platform.startswith(u'linux'):
+        if not notweak and sys.platform.startswith('linux'):
             try:
                 sock.setsockopt(socket.SOL_TCP, socket.TCP_DEFER_ACCEPT, 1)
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_QUICKACK, 1)
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
             except OSError:
                 # Doesn't work on Windows' Linux subsystem (#179)
-                logger.debug(u'setsockopt failed')
+                logger.debug('setsockopt failed')
 
-        if getattr(self, u'_tunnel_host', None):
+        if getattr(self, '_tunnel_host', None):
             self.sock = sock
         elif not notweak:
             # Try to use TLS 1.2
             ssl_context = None
-            if hasattr(ssl, u'PROTOCOL_TLS'):
+            if hasattr(ssl, 'PROTOCOL_TLS'):
                 # Since Python 3.5.3
                 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
                 ssl_context.options |= (ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
                                         ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
-            elif hasattr(ssl, u'PROTOCOL_TLSv1_2'):
+            elif hasattr(ssl, 'PROTOCOL_TLSv1_2'):
                 # Since Python 3.4
                 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
             if ssl_context:
@@ -244,7 +245,7 @@ class TLS1_2Connection(HTTPSConnection):
 
 
 class GoogleUrl(object):
-    u"""
+    """
     This class constructs the Google Search/News URL.
 
     This class is modelled on urllib.parse.ParseResult for familiarity,
@@ -289,12 +290,12 @@ class GoogleUrl(object):
     """
 
     def __init__(self, opts=None, **kwargs):
-        self.scheme = u'https'
+        self.scheme = 'https'
         # self.netloc is a calculated property
-        self.path = u'/search'
-        self.params = u''
+        self.path = '/search'
+        self.params = ''
         # self.query is a calculated property
-        self.fragment = u''
+        self.fragment = ''
 
         self._tld = None
         self._num = 10
@@ -302,8 +303,8 @@ class GoogleUrl(object):
         self._keywords = []
         self._sites = None
         self._query_dict = {
-            u'ie': u'UTF-8',
-            u'oe': u'UTF-8',
+            'ie': 'UTF-8',
+            'oe': 'UTF-8',
         }
         self.update(opts, **kwargs)
 
@@ -312,12 +313,12 @@ class GoogleUrl(object):
 
     @property
     def url(self):
-        u"""The full Google URL you want."""
+        """The full Google URL you want."""
         return self.full()
 
     @property
     def hostname(self):
-        u"""The hostname."""
+        """The hostname."""
         return self.netloc
 
     @hostname.setter
@@ -326,7 +327,7 @@ class GoogleUrl(object):
 
     @property
     def keywords(self):
-        u"""The keywords, either a str or a list of strs."""
+        """The keywords, either a str or a list of strs."""
         return self._keywords
 
     @keywords.setter
@@ -335,23 +336,23 @@ class GoogleUrl(object):
 
     @property
     def news(self):
-        u"""Whether the URL is for Google News."""
-        return u'tbm' in self._query_dict and self._query_dict[u'tbm'] == u'nws'
+        """Whether the URL is for Google News."""
+        return 'tbm' in self._query_dict and self._query_dict['tbm'] == 'nws'
 
     def full(self):
-        u"""Return the full URL.
+        """Return the full URL.
 
         Returns
         -------
         str
 
         """
-        url = (self.scheme + u':') if self.scheme else u''
-        url += u'//' + self.netloc + self.relative()
+        url = (self.scheme + ':') if self.scheme else ''
+        url += '//' + self.netloc + self.relative()
         return url
 
     def relative(self):
-        u"""Return the relative URL (without scheme and authority).
+        """Return the relative URL (without scheme and authority).
 
         Authority (see RFC 3986 section 3.2), or netloc in the
         terminology of urllib.parse, basically means the hostname
@@ -365,15 +366,15 @@ class GoogleUrl(object):
         """
         rel = self.path
         if self.params:
-            rel += u';' + self.params
+            rel += ';' + self.params
         if self.query:
-            rel += u'?' + self.query
+            rel += '?' + self.query
         if self.fragment:
-            rel += u'#' + self.fragment
+            rel += '#' + self.fragment
         return rel
 
     def update(self, opts=None, **kwargs):
-        u"""Update the URL with the given options.
+        """Update the URL with the given options.
 
         Parameters
         ----------
@@ -391,6 +392,7 @@ class GoogleUrl(object):
                 site: str
                 start: int
                 tld: str
+                unfilter: bool
 
         Other Parameters
         ----------------
@@ -403,38 +405,40 @@ class GoogleUrl(object):
 
         if opts is None:
             opts = {}
-        if hasattr(opts, u'__dict__'):
+        if hasattr(opts, '__dict__'):
             opts = opts.__dict__
         opts.update(kwargs)
 
         qd = self._query_dict
-        if u'duration' in opts and opts[u'duration']:
-            qd[u'tbs'] = u'qdr:%s' % opts[u'duration']
-        if u'exact' in opts:
-            if opts[u'exact']:
-                qd[u'nfpr'] = 1
+        if 'duration' in opts and opts['duration']:
+            qd['tbs'] = 'qdr:%s' % opts['duration']
+        if 'exact' in opts:
+            if opts['exact']:
+                qd['nfpr'] = 1
             else:
-                qd.pop(u'nfpr', None)
-        if u'keywords' in opts:
-            self._keywords = opts[u'keywords']
-        if u'lang' in opts and opts[u'lang']:
-            qd[u'hl'] = opts[u'lang']
-        if u'news' in opts:
-            if opts[u'news']:
-                qd[u'tbm'] = u'nws'
+                qd.pop('nfpr', None)
+        if 'keywords' in opts:
+            self._keywords = opts['keywords']
+        if 'lang' in opts and opts['lang']:
+            qd['hl'] = opts['lang']
+        if 'news' in opts:
+            if opts['news']:
+                qd['tbm'] = 'nws'
             else:
-                qd.pop(u'tbm', None)
-        if u'num' in opts:
-            self._num = opts[u'num']
-        if u'sites' in opts:
-            self._sites = opts[u'sites']
-        if u'start' in opts:
-            self._start = opts[u'start']
-        if u'tld' in opts:
-            self._tld = opts[u'tld']
+                qd.pop('tbm', None)
+        if 'num' in opts:
+            self._num = opts['num']
+        if 'sites' in opts:
+            self._sites = opts['sites']
+        if 'start' in opts:
+            self._start = opts['start']
+        if 'tld' in opts:
+            self._tld = opts['tld']
+        if 'unfilter' in opts and opts['unfilter']:
+            qd['filter'] = 0
 
     def set_queries(self, **kwargs):
-        u"""Forcefully set queries outside the normal `update` mechanism.
+        """Forcefully set queries outside the normal `update` mechanism.
 
         Other Parameters
         ----------------
@@ -451,7 +455,7 @@ class GoogleUrl(object):
             self._query_dict[k] = v
 
     def unset_queries(self, *args):
-        u"""Forcefully unset queries outside the normal `update` mechanism.
+        """Forcefully unset queries outside the normal `update` mechanism.
 
         Other Parameters
         ----------------
@@ -467,11 +471,11 @@ class GoogleUrl(object):
             self._query_dict.pop(k, None)
 
     def next_page(self):
-        u"""Navigate to the next page."""
+        """Navigate to the next page."""
         self._start += self._num
 
     def prev_page(self):
-        u"""Navigate to the previous page.
+        """Navigate to the previous page.
 
         Raises
         ------
@@ -481,11 +485,11 @@ class GoogleUrl(object):
 
         """
         if self._start == 0:
-            raise ValueError(u'Already at the first page.')
+            raise ValueError('Already at the first page.')
         self._start = (self._start - self._num) if self._start > self._num else 0
 
     def first_page(self):
-        u"""Navigate to the first page.
+        """Navigate to the first page.
 
         Raises
         ------
@@ -495,111 +499,111 @@ class GoogleUrl(object):
 
         """
         if self._start == 0:
-            raise ValueError(u'Already at the first page.')
+            raise ValueError('Already at the first page.')
         self._start = 0
 
     # Data source: https://en.wikipedia.org/wiki/List_of_Google_domains
     # Scraper script: https://gist.github.com/zmwangx/b976e83c14552fe18b71
     TLD_TO_DOMAIN_MAP = {
-        u'ac': u'google.ac',      u'ad': u'google.ad',      u'ae': u'google.ae',
-        u'af': u'google.com.af',  u'ag': u'google.com.ag',  u'ai': u'google.com.ai',
-        u'al': u'google.al',      u'am': u'google.am',      u'ao': u'google.co.ao',
-        u'ar': u'google.com.ar',  u'as': u'google.as',      u'at': u'google.at',
-        u'au': u'google.com.au',  u'az': u'google.az',      u'ba': u'google.ba',
-        u'bd': u'google.com.bd',  u'be': u'google.be',      u'bf': u'google.bf',
-        u'bg': u'google.bg',      u'bh': u'google.com.bh',  u'bi': u'google.bi',
-        u'bj': u'google.bj',      u'bn': u'google.com.bn',  u'bo': u'google.com.bo',
-        u'br': u'google.com.br',  u'bs': u'google.bs',      u'bt': u'google.bt',
-        u'bw': u'google.co.bw',   u'by': u'google.by',      u'bz': u'google.com.bz',
-        u'ca': u'google.ca',      u'cat': u'google.cat',    u'cc': u'google.cc',
-        u'cd': u'google.cd',      u'cf': u'google.cf',      u'cg': u'google.cg',
-        u'ch': u'google.ch',      u'ci': u'google.ci',      u'ck': u'google.co.ck',
-        u'cl': u'google.cl',      u'cm': u'google.cm',      u'cn': u'google.cn',
-        u'co': u'google.com.co',  u'cr': u'google.co.cr',   u'cu': u'google.com.cu',
-        u'cv': u'google.cv',      u'cy': u'google.com.cy',  u'cz': u'google.cz',
-        u'de': u'google.de',      u'dj': u'google.dj',      u'dk': u'google.dk',
-        u'dm': u'google.dm',      u'do': u'google.com.do',  u'dz': u'google.dz',
-        u'ec': u'google.com.ec',  u'ee': u'google.ee',      u'eg': u'google.com.eg',
-        u'es': u'google.es',      u'et': u'google.com.et',  u'fi': u'google.fi',
-        u'fj': u'google.com.fj',  u'fm': u'google.fm',      u'fr': u'google.fr',
-        u'ga': u'google.ga',      u'ge': u'google.ge',      u'gf': u'google.gf',
-        u'gg': u'google.gg',      u'gh': u'google.com.gh',  u'gi': u'google.com.gi',
-        u'gl': u'google.gl',      u'gm': u'google.gm',      u'gp': u'google.gp',
-        u'gr': u'google.gr',      u'gt': u'google.com.gt',  u'gy': u'google.gy',
-        u'hk': u'google.com.hk',  u'hn': u'google.hn',      u'hr': u'google.hr',
-        u'ht': u'google.ht',      u'hu': u'google.hu',      u'id': u'google.co.id',
-        u'ie': u'google.ie',      u'il': u'google.co.il',   u'im': u'google.im',
-        u'in': u'google.co.in',   u'io': u'google.io',      u'iq': u'google.iq',
-        u'is': u'google.is',      u'it': u'google.it',      u'je': u'google.je',
-        u'jm': u'google.com.jm',  u'jo': u'google.jo',      u'jp': u'google.co.jp',
-        u'ke': u'google.co.ke',   u'kg': u'google.kg',      u'kh': u'google.com.kh',
-        u'ki': u'google.ki',      u'kr': u'google.co.kr',   u'kw': u'google.com.kw',
-        u'kz': u'google.kz',      u'la': u'google.la',      u'lb': u'google.com.lb',
-        u'lc': u'google.com.lc',  u'li': u'google.li',      u'lk': u'google.lk',
-        u'ls': u'google.co.ls',   u'lt': u'google.lt',      u'lu': u'google.lu',
-        u'lv': u'google.lv',      u'ly': u'google.com.ly',  u'ma': u'google.co.ma',
-        u'md': u'google.md',      u'me': u'google.me',      u'mg': u'google.mg',
-        u'mk': u'google.mk',      u'ml': u'google.ml',      u'mm': u'google.com.mm',
-        u'mn': u'google.mn',      u'ms': u'google.ms',      u'mt': u'google.com.mt',
-        u'mu': u'google.mu',      u'mv': u'google.mv',      u'mw': u'google.mw',
-        u'mx': u'google.com.mx',  u'my': u'google.com.my',  u'mz': u'google.co.mz',
-        u'na': u'google.com.na',  u'ne': u'google.ne',      u'nf': u'google.com.nf',
-        u'ng': u'google.com.ng',  u'ni': u'google.com.ni',  u'nl': u'google.nl',
-        u'no': u'google.no',      u'np': u'google.com.np',  u'nr': u'google.nr',
-        u'nu': u'google.nu',      u'nz': u'google.co.nz',   u'om': u'google.com.om',
-        u'pa': u'google.com.pa',  u'pe': u'google.com.pe',  u'pg': u'google.com.pg',
-        u'ph': u'google.com.ph',  u'pk': u'google.com.pk',  u'pl': u'google.pl',
-        u'pn': u'google.co.pn',   u'pr': u'google.com.pr',  u'ps': u'google.ps',
-        u'pt': u'google.pt',      u'py': u'google.com.py',  u'qa': u'google.com.qa',
-        u'ro': u'google.ro',      u'rs': u'google.rs',      u'ru': u'google.ru',
-        u'rw': u'google.rw',      u'sa': u'google.com.sa',  u'sb': u'google.com.sb',
-        u'sc': u'google.sc',      u'se': u'google.se',      u'sg': u'google.com.sg',
-        u'sh': u'google.sh',      u'si': u'google.si',      u'sk': u'google.sk',
-        u'sl': u'google.com.sl',  u'sm': u'google.sm',      u'sn': u'google.sn',
-        u'so': u'google.so',      u'sr': u'google.sr',      u'st': u'google.st',
-        u'sv': u'google.com.sv',  u'td': u'google.td',      u'tg': u'google.tg',
-        u'th': u'google.co.th',   u'tj': u'google.com.tj',  u'tk': u'google.tk',
-        u'tl': u'google.tl',      u'tm': u'google.tm',      u'tn': u'google.tn',
-        u'to': u'google.to',      u'tr': u'google.com.tr',  u'tt': u'google.tt',
-        u'tw': u'google.com.tw',  u'tz': u'google.co.tz',   u'ua': u'google.com.ua',
-        u'ug': u'google.co.ug',   u'uk': u'google.co.uk',   u'uy': u'google.com.uy',
-        u'uz': u'google.co.uz',   u'vc': u'google.com.vc',  u've': u'google.co.ve',
-        u'vg': u'google.vg',      u'vi': u'google.co.vi',   u'vn': u'google.com.vn',
-        u'vu': u'google.vu',      u'ws': u'google.ws',      u'za': u'google.co.za',
-        u'zm': u'google.co.zm',   u'zw': u'google.co.zw',
+        'ac': 'google.ac',      'ad': 'google.ad',      'ae': 'google.ae',
+        'af': 'google.com.af',  'ag': 'google.com.ag',  'ai': 'google.com.ai',
+        'al': 'google.al',      'am': 'google.am',      'ao': 'google.co.ao',
+        'ar': 'google.com.ar',  'as': 'google.as',      'at': 'google.at',
+        'au': 'google.com.au',  'az': 'google.az',      'ba': 'google.ba',
+        'bd': 'google.com.bd',  'be': 'google.be',      'bf': 'google.bf',
+        'bg': 'google.bg',      'bh': 'google.com.bh',  'bi': 'google.bi',
+        'bj': 'google.bj',      'bn': 'google.com.bn',  'bo': 'google.com.bo',
+        'br': 'google.com.br',  'bs': 'google.bs',      'bt': 'google.bt',
+        'bw': 'google.co.bw',   'by': 'google.by',      'bz': 'google.com.bz',
+        'ca': 'google.ca',      'cat': 'google.cat',    'cc': 'google.cc',
+        'cd': 'google.cd',      'cf': 'google.cf',      'cg': 'google.cg',
+        'ch': 'google.ch',      'ci': 'google.ci',      'ck': 'google.co.ck',
+        'cl': 'google.cl',      'cm': 'google.cm',      'cn': 'google.cn',
+        'co': 'google.com.co',  'cr': 'google.co.cr',   'cu': 'google.com.cu',
+        'cv': 'google.cv',      'cy': 'google.com.cy',  'cz': 'google.cz',
+        'de': 'google.de',      'dj': 'google.dj',      'dk': 'google.dk',
+        'dm': 'google.dm',      'do': 'google.com.do',  'dz': 'google.dz',
+        'ec': 'google.com.ec',  'ee': 'google.ee',      'eg': 'google.com.eg',
+        'es': 'google.es',      'et': 'google.com.et',  'fi': 'google.fi',
+        'fj': 'google.com.fj',  'fm': 'google.fm',      'fr': 'google.fr',
+        'ga': 'google.ga',      'ge': 'google.ge',      'gf': 'google.gf',
+        'gg': 'google.gg',      'gh': 'google.com.gh',  'gi': 'google.com.gi',
+        'gl': 'google.gl',      'gm': 'google.gm',      'gp': 'google.gp',
+        'gr': 'google.gr',      'gt': 'google.com.gt',  'gy': 'google.gy',
+        'hk': 'google.com.hk',  'hn': 'google.hn',      'hr': 'google.hr',
+        'ht': 'google.ht',      'hu': 'google.hu',      'id': 'google.co.id',
+        'ie': 'google.ie',      'il': 'google.co.il',   'im': 'google.im',
+        'in': 'google.co.in',   'io': 'google.io',      'iq': 'google.iq',
+        'is': 'google.is',      'it': 'google.it',      'je': 'google.je',
+        'jm': 'google.com.jm',  'jo': 'google.jo',      'jp': 'google.co.jp',
+        'ke': 'google.co.ke',   'kg': 'google.kg',      'kh': 'google.com.kh',
+        'ki': 'google.ki',      'kr': 'google.co.kr',   'kw': 'google.com.kw',
+        'kz': 'google.kz',      'la': 'google.la',      'lb': 'google.com.lb',
+        'lc': 'google.com.lc',  'li': 'google.li',      'lk': 'google.lk',
+        'ls': 'google.co.ls',   'lt': 'google.lt',      'lu': 'google.lu',
+        'lv': 'google.lv',      'ly': 'google.com.ly',  'ma': 'google.co.ma',
+        'md': 'google.md',      'me': 'google.me',      'mg': 'google.mg',
+        'mk': 'google.mk',      'ml': 'google.ml',      'mm': 'google.com.mm',
+        'mn': 'google.mn',      'ms': 'google.ms',      'mt': 'google.com.mt',
+        'mu': 'google.mu',      'mv': 'google.mv',      'mw': 'google.mw',
+        'mx': 'google.com.mx',  'my': 'google.com.my',  'mz': 'google.co.mz',
+        'na': 'google.com.na',  'ne': 'google.ne',      'nf': 'google.com.nf',
+        'ng': 'google.com.ng',  'ni': 'google.com.ni',  'nl': 'google.nl',
+        'no': 'google.no',      'np': 'google.com.np',  'nr': 'google.nr',
+        'nu': 'google.nu',      'nz': 'google.co.nz',   'om': 'google.com.om',
+        'pa': 'google.com.pa',  'pe': 'google.com.pe',  'pg': 'google.com.pg',
+        'ph': 'google.com.ph',  'pk': 'google.com.pk',  'pl': 'google.pl',
+        'pn': 'google.co.pn',   'pr': 'google.com.pr',  'ps': 'google.ps',
+        'pt': 'google.pt',      'py': 'google.com.py',  'qa': 'google.com.qa',
+        'ro': 'google.ro',      'rs': 'google.rs',      'ru': 'google.ru',
+        'rw': 'google.rw',      'sa': 'google.com.sa',  'sb': 'google.com.sb',
+        'sc': 'google.sc',      'se': 'google.se',      'sg': 'google.com.sg',
+        'sh': 'google.sh',      'si': 'google.si',      'sk': 'google.sk',
+        'sl': 'google.com.sl',  'sm': 'google.sm',      'sn': 'google.sn',
+        'so': 'google.so',      'sr': 'google.sr',      'st': 'google.st',
+        'sv': 'google.com.sv',  'td': 'google.td',      'tg': 'google.tg',
+        'th': 'google.co.th',   'tj': 'google.com.tj',  'tk': 'google.tk',
+        'tl': 'google.tl',      'tm': 'google.tm',      'tn': 'google.tn',
+        'to': 'google.to',      'tr': 'google.com.tr',  'tt': 'google.tt',
+        'tw': 'google.com.tw',  'tz': 'google.co.tz',   'ua': 'google.com.ua',
+        'ug': 'google.co.ug',   'uk': 'google.co.uk',   'uy': 'google.com.uy',
+        'uz': 'google.co.uz',   'vc': 'google.com.vc',  've': 'google.co.ve',
+        'vg': 'google.vg',      'vi': 'google.co.vi',   'vn': 'google.com.vn',
+        'vu': 'google.vu',      'ws': 'google.ws',      'za': 'google.co.za',
+        'zm': 'google.co.zm',   'zw': 'google.co.zw',
     }
 
     @property
     def netloc(self):
-        u"""The hostname."""
+        """The hostname."""
         try:
-            return u'www.' + self.TLD_TO_DOMAIN_MAP[self._tld]
+            return 'www.' + self.TLD_TO_DOMAIN_MAP[self._tld]
         except KeyError:
-            return u'www.google.com'
+            return 'www.google.com'
 
     @property
     def query(self):
-        u"""The query string."""
+        """The query string."""
         qd = {}
         qd.update(self._query_dict)
-        qd[u'num'] = self._num
+        qd['num'] = self._num
         if self._start:
-            qd[u'start'] = self._start
+            qd['start'] = self._start
 
         # Construct the q query
-        q = u''
+        q = ''
         keywords = self._keywords
         sites = self._sites
         if keywords:
             if isinstance(keywords, list):
-                q += u'+'.join(urllib.quote_plus(kw) for kw in keywords)
+                q += '+'.join(urllib.quote_plus(kw) for kw in keywords)
             else:
                 q += urllib.quote_plus(keywords)
         if sites:
-            q += u'+OR'.join(u'+site:' + urllib.quote_plus(site) for site in sites)
-        qd[u'q'] = q
+            q += '+OR'.join('+site:' + urllib.quote_plus(site) for site in sites)
+        qd['q'] = q
 
-        return u'&'.join(u'%s=%s' % (k, qd[k]) for k in sorted(qd.keys()))
+        return '&'.join('%s=%s' % (k, qd[k]) for k in sorted(qd.keys()))
 
 
 class GoogleConnectionError(Exception):
@@ -607,7 +611,7 @@ class GoogleConnectionError(Exception):
 
 
 class GoogleConnection(object):
-    u"""
+    """
     This class facilitates connecting to and fetching from Google.
 
     Parameters
@@ -641,15 +645,15 @@ class GoogleConnection(object):
         self._notweak = notweak
         self._conn = None
         self.new_connection(host, port=port, timeout=timeout)
-        self.cookie = u''
+        self.cookie = ''
 
     @property
     def host(self):
-        u"""The host currently connected to."""
+        """The host currently connected to."""
         return self._host
 
     def new_connection(self, host=None, port=None, timeout=45):
-        u"""Close the current connection (if any) and establish a new one.
+        """Close the current connection (if any) and establish a new one.
 
         Parameters
         ----------
@@ -670,32 +674,40 @@ class GoogleConnection(object):
             port = self._port
         self._host = host
         self._port = port
-        host_display = host + (u':%d' % port if port else u'')
+        host_display = host + (':%d' % port if port else '')
 
         proxy = self._proxy
-        if proxy:
-            logger.debug(u'Connecting to proxy server %s', proxy)
-            self._conn = TLS1_2Connection(proxy, timeout=timeout)
 
-            logger.debug(u'Tunnelling to host %s' % host_display)
-            self._conn.set_tunnel(host, port=port)
+        if proxy:
+            proxy_user_passwd, proxy_host_port = parse_proxy_spec(proxy)
+
+            logger.debug('Connecting to proxy server %s', proxy_host_port)
+            self._conn = TLS1_2Connection(proxy_host_port, timeout=timeout)
+
+            logger.debug('Tunnelling to host %s' % host_display)
+            connect_headers = {}
+            if proxy_user_passwd:
+                connect_headers['Proxy-Authorization'] = 'Basic %s' % base64.b64encode(
+                    proxy_user_passwd.encode('utf-8')
+                ).decode('utf-8')
+            self._conn.set_tunnel(host, port=port, headers=connect_headers)
 
             try:
                 self._conn.connect(self._notweak)
             except Exception, e:
-                msg = u'Failed to connect to proxy server %s: %s.' % (proxy, e)
+                msg = 'Failed to connect to proxy server %s: %s.' % (proxy, e)
                 raise GoogleConnectionError(msg)
         else:
-            logger.debug(u'Connecting to new host %s', host_display)
+            logger.debug('Connecting to new host %s', host_display)
             self._conn = TLS1_2Connection(host, port=port, timeout=timeout)
             try:
                 self._conn.connect(self._notweak)
             except Exception, e:
-                msg = u'Failed to connect to %s: %s.' % (host_display, e)
+                msg = 'Failed to connect to %s: %s.' % (host_display, e)
                 raise GoogleConnectionError(msg)
 
     def renew_connection(self, timeout=45):
-        u"""Renew current connection.
+        """Renew current connection.
 
         Equivalent to ``new_connection(timeout=timeout)``.
 
@@ -703,7 +715,7 @@ class GoogleConnection(object):
         self.new_connection(timeout=timeout)
 
     def fetch_page(self, url):
-        u"""Fetch a URL.
+        """Fetch a URL.
 
         Allows one reconnection and multiple redirections before failing
         and raising GoogleConnectionError.
@@ -729,22 +741,22 @@ class GoogleConnection(object):
         try:
             self._raw_get(url)
         except (httplib.HTTPException, OSError), e:
-            logger.debug(u'Got exception: %s.', e)
-            logger.debug(u'Attempting to reconnect...')
+            logger.debug('Got exception: %s.', e)
+            logger.debug('Attempting to reconnect...')
             self.renew_connection()
             try:
                 self._raw_get(url)
             except httplib.HTTPException, e:
-                logger.debug(u'Got exception: %s.', e)
-                raise GoogleConnectionError(u"Failed to get '%s'." % url)
+                logger.debug('Got exception: %s.', e)
+                raise GoogleConnectionError("Failed to get '%s'." % url)
 
         resp = self._resp
         redirect_counter = 0
         while resp.status != 200 and redirect_counter < 3:
-            if resp.status in set([301, 302, 303, 307, 308]):
-                redirection_url = resp.getheader(u'location', u'')
-                if u'sorry/IndexRedirect?' in redirection_url or u'sorry/index?' in redirection_url:
-                    raise GoogleConnectionError(u'Connection blocked due to unusual activity.')
+            if resp.status in {301, 302, 303, 307, 308}:
+                redirection_url = resp.getheader('location', '')
+                if 'sorry/IndexRedirect?' in redirection_url or 'sorry/index?' in redirection_url:
+                    raise GoogleConnectionError('Connection blocked due to unusual activity.')
                 self._redirect(redirection_url)
                 resp = self._resp
                 redirect_counter += 1
@@ -752,17 +764,17 @@ class GoogleConnection(object):
                 break
 
         if resp.status != 200:
-            raise GoogleConnectionError(u'Got HTTP %d: %s' % (resp.status, resp.reason))
+            raise GoogleConnectionError('Got HTTP %d: %s' % (resp.status, resp.reason))
 
         payload = resp.read()
         try:
-            return gzip.zlib.decompress(payload, gzip.zlib.MAX_WBITS|16).decode(u'utf-8')
+            return gzip.zlib.decompress(payload, gzip.zlib.MAX_WBITS|16).decode('utf-8')
         except OSError:
             # Not gzipped
-            return payload.decode(u'utf-8')
+            return payload.decode('utf-8')
 
     def _redirect(self, url):
-        u"""Redirect to and fetch a new URL.
+        """Redirect to and fetch a new URL.
 
         Like `_raw_get`, the response is stored in ``self._resp``. A new
         connection is made if redirecting to a different host.
@@ -778,22 +790,22 @@ class GoogleConnection(object):
         GoogleConnectionError
 
         """
-        logger.debug(u'Redirecting to URL %s', url)
+        logger.debug('Redirecting to URL %s', url)
         segments = urlparse.urlparse(url)
 
         host = segments.netloc
         if host != self._host:
             self.new_connection(host)
 
-        relurl = urlparse.urlunparse((u'', u'') + segments[2:])
+        relurl = urlparse.urlunparse(('', '') + segments[2:])
         try:
             self._raw_get(relurl)
         except httplib.HTTPException, e:
-            logger.debug(u'Got exception: %s.', e)
-            raise GoogleConnectionError(u"Failed to get '%s'." % url)
+            logger.debug('Got exception: %s.', e)
+            raise GoogleConnectionError("Failed to get '%s'." % url)
 
     def _raw_get(self, url):
-        u"""Make a raw HTTP GET request.
+        """Make a raw HTTP GET request.
 
         No status check (which implies no redirection). Response can be
         accessed from ``self._resp``.
@@ -808,24 +820,24 @@ class GoogleConnection(object):
         http.client.HTTPException
 
         """
-        logger.debug(u'Fetching URL %s', url)
-        self._conn.request(u'GET', url, None, {
-            u'Accept-Encoding': u'gzip',
-            u'User-Agent': USER_AGENT if ua else u'',
-            u'Cookie': self.cookie,
-            u'Connection': u'keep-alive',
-            u'DNT': u'1',
+        logger.debug('Fetching URL %s', url)
+        self._conn.request('GET', url, None, {
+            'Accept-Encoding': 'gzip',
+            'User-Agent': USER_AGENT if ua else '',
+            'Cookie': self.cookie,
+            'Connection': 'keep-alive',
+            'DNT': '1',
         })
         self._resp = self._conn.getresponse()
-        if self.cookie == u'':
-            complete_cookie = self._resp.getheader(u'Set-Cookie')
+        if self.cookie == '':
+            complete_cookie = self._resp.getheader('Set-Cookie')
             # Cookie won't be available is already blocked
             if complete_cookie is not None:
-                self.cookie = complete_cookie[:complete_cookie.find(u';')]
-                logger.debug(u'Cookie: %s' % self.cookie)
+                self.cookie = complete_cookie[:complete_cookie.find(';')]
+                logger.debug('Cookie: %s' % self.cookie)
 
     def close(self):
-        u"""Close the connection (if one is active)."""
+        """Close the connection (if one is active)."""
         if self._conn:
             self._conn.close()
 
@@ -844,7 +856,7 @@ def annotate_tag(annotated_starttag_handler):
         context = annotated_starttag_handler.__name__[:-6]
 
         # If context is 'ignore', ignore all tests
-        if context == u'ignore':
+        if context == 'ignore':
             self.insert_annotation(tag, None)
             return
 
@@ -854,10 +866,10 @@ def annotate_tag(annotated_starttag_handler):
         ignored = False
         for selector in self.IGNORE_LIST:
             for attr in selector:
-                if attr == u'tag':
-                    if tag != selector[u'tag']:
+                if attr == 'tag':
+                    if tag != selector['tag']:
                         break
-                elif attr == u'class':
+                elif attr == 'class':
                     tag_classes = set(self.classes(attrs))
                     selector_classes = set(self.classes(selector))
                     if not selector_classes.issubset(tag_classes):
@@ -872,8 +884,8 @@ def annotate_tag(annotated_starttag_handler):
 
         # If tag matches ignore list, annotate and hand over to ignore_*
         if ignored:
-            self.insert_annotation(tag, context + u'_ignored')
-            self.set_handlers_to(u'ignore')
+            self.insert_annotation(tag, context + '_ignored')
+            self.set_handlers_to('ignore')
             return
 
         # Standard
@@ -901,7 +913,7 @@ def retrieve_tag_annotation(annotated_endtag_handler):
 
 
 class GoogleParser(HTMLParser.HTMLParser):
-    u"""The members of this class parse the result
+    """The members of this class parse the result
     HTML page fetched from Google server for a query.
 
     The custom parser looks for tags enclosing search
@@ -1179,10 +1191,10 @@ class GoogleParser(HTMLParser.HTMLParser):
         self.results = []
 
         self.index = 0
-        self.textbuf = u''
+        self.textbuf = ''
         self.tag_annotations = {}
 
-        self.set_handlers_to(u'root')
+        self.set_handlers_to('root')
 
     # Ignore list
     IGNORE_LIST = [
@@ -1190,19 +1202,19 @@ class GoogleParser(HTMLParser.HTMLParser):
         # Sample query: VPN
         # Screenshot: https://i.imgur.com/yfcsoQz.png
         {
-            u'tag': u'div',
-            u'class': u'related-question-pair'
+            'tag': 'div',
+            'class': 'related-question-pair'
         },
         # We omit Google's "smart card" results (term coined by me) by
         # guarding against the 'g-blk' class (sample response: https://git.io/voJgB)
         {
-            u'tag': u'div',
-            u'class': u'g-blk'
+            'tag': 'div',
+            'class': 'g-blk'
         },
         # We also guard against "smart-card" results with `--noua` option
         {
-            u'tag': u'div',
-            u'class': u'hp-xpdbox'
+            'tag': 'div',
+            'class': 'hp-xpdbox'
         }
     ]
 
@@ -1210,12 +1222,12 @@ class GoogleParser(HTMLParser.HTMLParser):
 
     @annotate_tag
     def root_start(self, tag, attrs):
-        if tag == u'div' and u'g' in self.classes(attrs):
+        if tag == 'div' and 'g' in self.classes(attrs):
             # Initialize result field registers
-            self.title = u''
-            self.url = u''
-            self.abstract = u''
-            self.metadata = u''  # Only used for Google News
+            self.title = ''
+            self.url = ''
+            self.abstract = ''
+            self.metadata = ''  # Only used for Google News
             self.sitelinks = []
 
             # Guard against sitelinks, which also have titles and
@@ -1225,202 +1237,206 @@ class GoogleParser(HTMLParser.HTMLParser):
             self.abstract_registered = False
             self.metadata_registered = False  # Only used for Google News
 
-            self.set_handlers_to(u'result')
-            return u'result'
+            self.set_handlers_to('result')
+            return 'result'
 
         # Autocorrect
-        if tag == u'span' and u'spell_orig' in self.classes(attrs) and attrs.get(u'id') != u'sifm':
+        if tag == 'span' and 'spell_orig' in self.classes(attrs) and attrs.get('id') != 'sifm':
             self.autocorrected = True
             return
-        if tag == u'a' and u'spell' in self.classes(attrs) and attrs.get(u'id') != u'srfl':
+        if tag == 'a' and 'spell' in self.classes(attrs) and attrs.get('id') != 'srfl':
             self.start_populating_textbuf()
-            return u'spell'
+            return 'spell'
 
         # Omitted results
-        if tag == u'p' and attrs.get(u'id') == u'ofr':
+        if tag == 'p' and attrs.get('id') == 'ofr':
             self.filtered = True
 
     @retrieve_tag_annotation
     def root_end(self, tag, annotation):
-        if annotation == u'spell':
+        if annotation == 'spell':
             self.stop_populating_textbuf()
             self.suggested_spelling = self.pop_textbuf()
 
     @annotate_tag
     def result_start(self, tag, attrs):
-        if not ua and tag == u'span' and u'mime' in self.classes(attrs):
+        if not ua and tag == 'span' and 'mime' in self.classes(attrs):
             self.start_populating_textbuf()
-            return u'title_filetype'
+            return 'title_filetype'
 
-        if not self.title_registered and tag == u'h3' and u'r' in self.classes(attrs):
-            self.set_handlers_to(u'title')
-            return u'title'
+        if not self.title_registered and tag == 'h3' and 'r' in self.classes(attrs):
+            self.set_handlers_to('title')
+            return 'title'
 
-        if not self.abstract_registered and tag == u'div' and u's' in self.classes(attrs):
-            self.set_handlers_to(u'abstract')
-            return u'abstract'
+        if not self.abstract_registered and tag == 'div' and 's' in self.classes(attrs):
+            self.set_handlers_to('abstract')
+            return 'abstract'
 
         if not ua and not self.abstract_registered \
-                and tag == u'span' and u'st' in self.classes(attrs):
-            self.start_populating_textbuf(lambda text: text + u' ')
-            return u'abstract_gservices'
+                and tag == 'span' and 'st' in self.classes(attrs):
+            self.start_populating_textbuf(lambda text: text + ' ')
+            return 'abstract_gservices'
 
-        if not self.sitelinks and tag == u'table':
-            if ua or (not self.news and u'ts' not in self.classes(attrs)):
-                self.set_handlers_to(u'sitelink_table')
-                return u'sitelink_table'
+        if not self.sitelinks and tag == 'table':
+            if ua or (not self.news and 'ts' not in self.classes(attrs)):
+                self.set_handlers_to('sitelink_table')
+                return 'sitelink_table'
 
         if self.news:
-            if not self.metadata_registered and tag == u'div' and u'slp' in self.classes(attrs):
+            if not self.metadata_registered and tag == 'div' and 'slp' in self.classes(attrs):
                 # Change metadata field separator from '-' to ', ' for better appearance
                 if ua:
-                    self.start_populating_textbuf(lambda text: u', ' if text == u'-' else text)
+                    self.start_populating_textbuf(lambda text: ', ' if text == '-' else text)
                 else:
                     self.start_populating_textbuf(lambda text:
-                                                  text.replace(u' -', u',', 1) if u' - ' in text else text)
-                return u'news_metadata'
+                                                  text.replace(' -', ',', 1) if ' - ' in text else text)
+                return 'news_metadata'
 
-            if not self.abstract_registered and tag == u'div' and u'st' in self.classes(attrs):
+            if not self.abstract_registered and tag == 'div' and 'st' in self.classes(attrs):
                 self.start_populating_textbuf()
-                return u'news_abstract'
+                return 'news_abstract'
 
     @retrieve_tag_annotation
     def result_end(self, tag, annotation):
-        if annotation == u'result':
+        if annotation == 'result':
             if self.url:
                 self.index += 1
                 result = Result(self.index, self.title, self.url, self.abstract,
                                 metadata=self.metadata if self.metadata else None,
                                 sitelinks=self.sitelinks)
                 self.results.append(result)
-            self.set_handlers_to(u'root')
-        elif annotation == u'news_metadata':
+            self.set_handlers_to('root')
+        elif annotation == 'news_metadata':
             self.stop_populating_textbuf()
             self.metadata = self.pop_textbuf()
             self.metadata_registered = True
-        elif annotation == u'news_abstract':
+        elif annotation == 'news_abstract':
             self.stop_populating_textbuf()
             self.abstract = self.pop_textbuf()
             self.abstract_registered = True
-        elif annotation == u'abstract_gservices':
+        elif annotation == 'abstract_gservices':
             self.stop_populating_textbuf()
-            self.abstract = self.pop_textbuf().replace(u'  ', u' ')
+            self.abstract = self.pop_textbuf().replace('  ', ' ')
             self.abstract_registered = True
 
     @annotate_tag
     def title_start(self, tag, attrs):
-        if ua and tag == u'span':
+        if ua and tag == 'span':
             # Print a space after the filetype indicator
-            self.start_populating_textbuf(lambda text: text + u' ')
-            return u'title_filetype'
-        if tag == u'a' and u'href' in attrs:
+            self.start_populating_textbuf(lambda text: text + ' ')
+            return 'title_filetype'
+        if tag == 'a' and 'href' in attrs:
             # Skip 'News for', 'Images for' search links
-            if attrs[u'href'].startswith(u'/search'):
+            if attrs['href'].startswith('/search'):
                 return
 
-            self.url = attrs[u'href']
+            # Skip card results
+            if not ua and "fl" in self.classes(attrs):
+                return
+
+            self.url = attrs['href']
             try:
-                start = self.url.index(u'?q=') + len(u'?q=')
-                end = self.url.index(u'&sa=', start)
+                start = self.url.index('?q=') + len('?q=')
+                end = self.url.index('&sa=', start)
                 self.url = urllib.unquote_plus(self.url[start:end])
             except ValueError:
                 pass
             self.start_populating_textbuf()
-            return u'title_link'
+            return 'title_link'
 
     @retrieve_tag_annotation
     def title_end(self, tag, annotation):
-        if annotation == u'title_filetype':
+        if annotation == 'title_filetype':
             self.stop_populating_textbuf()
-        elif annotation == u'title_link':
+        elif annotation == 'title_link':
             self.stop_populating_textbuf()
             self.title = self.pop_textbuf()
             self.title_registered = True
-        elif annotation == u'title':
-            self.set_handlers_to(u'result')
+        elif annotation == 'title':
+            self.set_handlers_to('result')
 
     @annotate_tag
     def abstract_start(self, tag, attrs):
         if (not self.metadata_registered and
-                tag == u'div' and u'slp' in self.classes(attrs)):
+                tag == 'div' and 'slp' in self.classes(attrs)):
             self.start_populating_textbuf()
-            return u'result_metadata'
-        if tag == u'span' and u'st' in self.classes(attrs):
+            return 'result_metadata'
+        if tag == 'span' and 'st' in self.classes(attrs):
             self.start_populating_textbuf()
-            return u'abstract_text'
+            return 'abstract_text'
 
     @retrieve_tag_annotation
     def abstract_end(self, tag, annotation):
-        if annotation == u'result_metadata':
+        if annotation == 'result_metadata':
             self.stop_populating_textbuf()
-            self.metadata = self.pop_textbuf().strip().replace(u'\u200e', u'')
+            self.metadata = self.pop_textbuf().strip().replace('\u200e', '')
             self.metadata_registered = True
-        elif annotation == u'abstract_text':
+        elif annotation == 'abstract_text':
             self.stop_populating_textbuf()
             self.abstract = self.pop_textbuf()
             self.abstract_registered = True
-        elif annotation == u'abstract':
-            self.set_handlers_to(u'result')
+        elif annotation == 'abstract':
+            self.set_handlers_to('result')
 
     @annotate_tag
     def sitelink_table_start(self, tag, attrs):
-        if tag == u'td':
+        if tag == 'td':
             # Initialize a new sitelink
-            self.current_sitelink = Sitelink(u'', u'', u'')
-            self.set_handlers_to(u'sitelink')
-            return u'sitelink'
+            self.current_sitelink = Sitelink('', '', '')
+            self.set_handlers_to('sitelink')
+            return 'sitelink'
 
     @retrieve_tag_annotation
     def sitelink_table_end(self, tag, annotation):
-        if annotation == u'sitelink_table':
-            self.set_handlers_to(u'result')
+        if annotation == 'sitelink_table':
+            self.set_handlers_to('result')
 
     @annotate_tag
     def sitelink_start(self, tag, attrs):
-        if tag == u'h3' and u'r' in self.classes(attrs):
-            self.set_handlers_to(u'sitelink_title')
-            return u'sitelink_title'
-        if tag == u'div' and u'st' in self.classes(attrs):
+        if tag == 'h3' and 'r' in self.classes(attrs):
+            self.set_handlers_to('sitelink_title')
+            return 'sitelink_title'
+        if tag == 'div' and 'st' in self.classes(attrs):
             self.start_populating_textbuf()
-            return u'sitelink_abstract'
+            return 'sitelink_abstract'
 
     @retrieve_tag_annotation
     def sitelink_end(self, tag, annotation):
-        if annotation == u'sitelink_abstract':
+        if annotation == 'sitelink_abstract':
             self.stop_populating_textbuf()
             self.current_sitelink.abstract = self.pop_textbuf()
-        elif annotation == u'sitelink':
+        elif annotation == 'sitelink':
             if self.current_sitelink.url:
                 self.sitelinks.append(self.current_sitelink)
-            self.set_handlers_to(u'sitelink_table')
+            self.set_handlers_to('sitelink_table')
 
     @annotate_tag
     def sitelink_title_start(self, tag, attrs):
-        if tag == u'a' and u'href' in attrs:
-            self.current_sitelink.url = attrs[u'href']
+        if tag == 'a' and 'href' in attrs:
+            self.current_sitelink.url = attrs['href']
             try:
-                start = self.current_sitelink.url.index(u'?q=') + len(u'?q=')
-                end = self.current_sitelink.url.index(u'&sa=', start)
+                start = self.current_sitelink.url.index('?q=') + len('?q=')
+                end = self.current_sitelink.url.index('&sa=', start)
                 self.current_sitelink.url = urllib.unquote_plus(self.current_sitelink.url[start:end])
             except ValueError:
                 pass
             self.start_populating_textbuf()
-            return u'sitelink_title_link'
+            return 'sitelink_title_link'
 
     @retrieve_tag_annotation
     def sitelink_title_end(self, tag, annotation):
-        if annotation == u'sitelink_title_link':
+        if annotation == 'sitelink_title_link':
             self.stop_populating_textbuf()
             self.current_sitelink.title = self.pop_textbuf()
-        elif annotation == u'sitelink_title':
-            self.set_handlers_to(u'sitelink')
+        elif annotation == 'sitelink_title':
+            self.set_handlers_to('sitelink')
 
     # Generic methods
 
     # Set handle_starttag to SCOPE_start, and handle_endtag to SCOPE_end.
     def set_handlers_to(self, scope):
-        self.handle_starttag = getattr(self, scope + u'_start')
-        self.handle_endtag = getattr(self, scope + u'_end')
+        self.handle_starttag = getattr(self, scope + '_start')
+        self.handle_endtag = getattr(self, scope + '_end')
 
     def insert_annotation(self, tag, annotation):
         if tag not in self.tag_annotations:
@@ -1433,7 +1449,7 @@ class GoogleParser(HTMLParser.HTMLParser):
 
     @retrieve_tag_annotation
     def ignore_end(self, tag, annotation):
-        if annotation and annotation.endswith(u'_ignored'):
+        if annotation and annotation.endswith('_ignored'):
             # Strip '-ignore' suffix from annotation to obtain the outer
             # context name.
             context = annotation[:-8]
@@ -1454,7 +1470,7 @@ class GoogleParser(HTMLParser.HTMLParser):
 
     def pop_textbuf(self):
         text = self.textbuf
-        self.textbuf = u''
+        self.textbuf = ''
         return text
 
     def stop_populating_textbuf(self):
@@ -1481,10 +1497,10 @@ class GoogleParser(HTMLParser.HTMLParser):
             #
             # where &p is interpreted by HTMLParser as an entity (this
             # behaviour seems to be specific to Python 2.7).
-            self.textbuf += u'&' + ref
+            self.textbuf += '&' + ref
 
     def record_charref(self, ref):
-        if ref.startswith(u'x'):
+        if ref.startswith('x'):
             char = unichr(int(ref[1:], 16))
         else:
             char = unichr(int(ref))
@@ -1492,25 +1508,25 @@ class GoogleParser(HTMLParser.HTMLParser):
 
     @staticmethod
     def classes(attrs):
-        u"""Get tag's classes from its attribute dict."""
-        return attrs.get(u'class', u'').split()
+        """Get tag's classes from its attribute dict."""
+        return attrs.get('class', '').split()
 
 
 class Sitelink(object):
-    u"""Container for a sitelink."""
+    """Container for a sitelink."""
 
     def __init__(self, title, url, abstract):
         self.title = title
         self.url = url
         self.abstract = abstract
-        self.index = u''
+        self.index = ''
 
 
-Colors = collections.namedtuple(u'Colors', u'index, title, url, metadata, abstract, prompt, reset')
+Colors = collections.namedtuple('Colors', 'index, title, url, metadata, abstract, prompt, reset')
 
 
 class Result(object):
-    u"""
+    """
     Container for one search result, with output helpers.
 
     Parameters
@@ -1559,7 +1575,7 @@ class Result(object):
         self.sitelinks = [] if sitelinks is None else sitelinks
 
         self._urltable = {index: url}
-        subindex = u'a'
+        subindex = 'a'
         for sitelink in sitelinks:
             fullindex = index + subindex
             sitelink.index = fullindex
@@ -1570,14 +1586,14 @@ class Result(object):
         colors = self.colors
 
         # Pad index and url with `indent` number of spaces
-        index = u' ' * indent + unicode(index)
-        url = u' ' * indent + url
+        index = ' ' * indent + unicode(index)
+        url = ' ' * indent + url
         if colors:
-            print colors.index + index + colors.reset,; sys.stdout.write(u'')
-            print u' ' + colors.title + title + colors.reset
+            print colors.index + index + colors.reset,; sys.stdout.write('')
+            print ' ' + colors.title + title + colors.reset
             print colors.url + url + colors.reset
         else:
-            print u' %s %s\n%s' % (index, title, url)
+            print ' %s %s\n%s' % (index, title, url)
 
     def _print_metadata_and_abstract(self, abstract, metadata=None, indent=0):
         colors = self.colors
@@ -1593,20 +1609,20 @@ class Result(object):
                 print metadata
 
         if colors:
-            print colors.abstract,; sys.stdout.write(u'')
+            print colors.abstract,; sys.stdout.write('')
         if columns > indent + 1:
             # Try to fill to columns
             fillwidth = columns - indent - 1
-            for line in textwrap.wrap(abstract.replace(u'\n', u''), width=fillwidth):
-                print u'%s%s' % (u' ' * indent, line)
-            print u''
+            for line in textwrap.wrap(abstract.replace('\n', ''), width=fillwidth):
+                print '%s%s' % (' ' * indent, line)
+            print ''
         else:
-            print u'%s\n' % abstract.replace(u'\n', u' ')
+            print '%s\n' % abstract.replace('\n', ' ')
         if colors:
-            print colors.reset,; sys.stdout.write(u'')
+            print colors.reset,; sys.stdout.write('')
 
     def print2term(self):
-        u"""Print the result entry."""
+        """Print the result entry."""
         self._print_title_and_url(self.index, self.title, self.url)
         self._print_metadata_and_abstract(self.abstract, metadata=self.metadata)
 
@@ -1615,20 +1631,20 @@ class Result(object):
             self._print_metadata_and_abstract(sitelink.abstract, indent=4)
 
     def jsonizable_object(self):
-        u"""Return a JSON-serializable dict representing the result entry."""
+        """Return a JSON-serializable dict representing the result entry."""
         obj = {
-            u'title': self.title,
-            u'url': self.url,
-            u'abstract': self.abstract
+            'title': self.title,
+            'url': self.url,
+            'abstract': self.abstract
         }
         if self.metadata:
-            obj[u'metadata'] = self.metadata
+            obj['metadata'] = self.metadata
         if self.sitelinks:
-            obj[u'sitelinks'] = [sitelink.__dict__ for sitelink in self.sitelinks]
+            obj['sitelinks'] = [sitelink.__dict__ for sitelink in self.sitelinks]
         return obj
 
     def urltable(self):
-        u"""Return a index-to-URL table for the current result.
+        """Return a index-to-URL table for the current result.
 
         Normally, the table contains only a single entry, but when the result
         contains sitelinks, all sitelinks are included in this table.
@@ -1658,7 +1674,7 @@ def require_keywords(method):
     @functools.wraps(method)
     def enforced_method(self, *args, **kwargs):
         if not self.keywords:
-            raise NoKeywordsException(u'No keywords.')
+            raise NoKeywordsException('No keywords.')
         method(self, *args, **kwargs)
 
     return enforced_method
@@ -1672,15 +1688,15 @@ def no_argument(method):
     def enforced_method(self, arg):
         if arg:
             method_name = arg.__name__
-            command_name = method_name[3:] if method_name.startswith(u'do_') else method_name
-            logger.warning(u"Argument to the '%s' command ignored.", command_name)
+            command_name = method_name[3:] if method_name.startswith('do_') else method_name
+            logger.warning("Argument to the '%s' command ignored.", command_name)
         method(self)
 
     return enforced_method
 
 
 class GooglerCmd(object):
-    u"""
+    """
     Command line interpreter and executor class for googler.
 
     Inspired by PSL cmd.Cmd.
@@ -1716,7 +1732,7 @@ class GooglerCmd(object):
         self._opts = opts
 
         self._google_url = GoogleUrl(opts)
-        proxy = opts.proxy if hasattr(opts, u'proxy') else None
+        proxy = opts.proxy if hasattr(opts, 'proxy') else None
         self._conn = GoogleConnection(self._google_url.hostname, proxy=proxy,
                                       notweak=opts.notweak)
         atexit.register(self._conn.close)
@@ -1728,17 +1744,17 @@ class GooglerCmd(object):
 
     @property
     def options(self):
-        u"""Current options."""
+        """Current options."""
         return self._opts
 
     @property
     def keywords(self):
-        u"""Current keywords."""
+        """Current keywords."""
         return self._google_url.keywords
 
     @require_keywords
     def fetch(self):
-        u"""Fetch a page and parse for results.
+        """Fetch a page and parse for results.
 
         Results are stored in ``self.results``.
 
@@ -1757,11 +1773,11 @@ class GooglerCmd(object):
 
         if logger.isEnabledFor(logging.DEBUG):
             import tempfile
-            fd, tmpfile = tempfile.mkstemp(prefix=u'googler-response-')
+            fd, tmpfile = tempfile.mkstemp(prefix='googler-response-')
             os.close(fd)
-            with open(tmpfile, u'w', encoding=u'utf-8') as fp:
+            with open(tmpfile, 'w', encoding='utf-8') as fp:
                 fp.write(page)
-            logger.debug(u"Response body written to '%s'.", tmpfile)
+            logger.debug("Response body written to '%s'.", tmpfile)
 
         parser = GoogleParser(news=self._google_url.news)
         parser.feed(page)
@@ -1774,8 +1790,8 @@ class GooglerCmd(object):
             self._urltable.update(r.urltable())
 
     @require_keywords
-    def display_results(self, prelude=u'\n', json_output=False):
-        u"""Display results stored in ``self.results``.
+    def display_results(self, prelude='\n', json_output=False):
+        """Display results stored in ``self.results``.
 
         Parameters
         ----------
@@ -1790,15 +1806,15 @@ class GooglerCmd(object):
         else:
             # Regular output
             if not self.results:
-                print >>sys.stderr, u'No results.'
+                print >>sys.stderr, 'No results.'
             else:
                 sys.stderr.write(prelude)
                 for r in self.results:
                     r.print2term()
 
     @require_keywords
-    def fetch_and_display(self, prelude=u'\n', json_output=False, interactive=True):
-        u"""Fetch a page and display results.
+    def fetch_and_display(self, prelude='\n', json_output=False, interactive=True):
+        """Fetch a page and display results.
 
         Results are stored in ``self.results``.
 
@@ -1828,27 +1844,27 @@ class GooglerCmd(object):
         if self._autocorrected_to:
             if colors:
                 # Underline the keywords
-                autocorrected_to = u'\x1b[4m' + self._autocorrected_to + u'\x1b[24m'
+                autocorrected_to = '\x1b[4m' + self._autocorrected_to + '\x1b[24m'
             else:
                 autocorrected_to = self._autocorrected_to
-            autocorrect_info = (u'Showing results for %s; enter "x" for an exact search.' %
+            autocorrect_info = ('Showing results for %s; enter "x" for an exact search.' %
                                 autocorrected_to)
-            printerr(u'')
+            printerr('')
             if colors:
                 printerr(colors.prompt + autocorrect_info + colors.reset)
             else:
-                printerr(u'** ' + autocorrect_info)
+                printerr('** ' + autocorrect_info)
         self.display_results(prelude=prelude, json_output=json_output)
         if self._results_filtered:
-            unfilter_info = u'Enter "unfilter" to show similar results Google omitted.'
+            unfilter_info = 'Enter "unfilter" to show similar results Google omitted.'
             if colors:
                 printerr(colors.prompt + unfilter_info + colors.reset)
             else:
-                printerr(u'** ' + unfilter_info)
-            printerr(u'')
+                printerr('** ' + unfilter_info)
+            printerr('')
 
     def read_next_command(self):
-        u"""Show omniprompt and read user command line.
+        """Show omniprompt and read user command line.
 
         Command line is always stripped, and each consecutive group of
         whitespace is replaced with a single space character. If the
@@ -1860,8 +1876,8 @@ class GooglerCmd(object):
 
         """
         colors = self.colors
-        message = u'googler (? for help)'
-        prompt = (colors.prompt + message + colors.reset + u' ') if colors else (message + u': ')
+        message = 'googler (? for help)'
+        prompt = (colors.prompt + message + colors.reset + ' ') if colors else (message + ': ')
         enter_count = 0
         while True:
             try:
@@ -1877,7 +1893,7 @@ class GooglerCmd(object):
             else:
                 enter_count = 0
 
-            cmd = u' '.join(cmd.split())
+            cmd = ' '.join(cmd.split())
             if cmd:
                 self.cmd = cmd
                 break
@@ -1885,7 +1901,7 @@ class GooglerCmd(object):
     @staticmethod
     def help():
         GooglerArgumentParser.print_omniprompt_help(sys.stderr)
-        printerr(u'')
+        printerr('')
 
     @require_keywords
     @no_argument
@@ -1905,7 +1921,7 @@ class GooglerCmd(object):
         # If > 5 results are being fetched each time,
         # block next when no parsed results in current fetch
         if not self.results and self._google_url._num > 5:
-            printerr(u'No results.')
+            printerr('No results.')
         else:
             self._google_url.next_page()
             self.fetch_and_display()
@@ -1917,13 +1933,30 @@ class GooglerCmd(object):
             return
 
         for nav in args:
-            if nav == u'a':
+            if nav == 'a':
                 for key, value in sorted(self._urltable.items()):
                     open_url(self._urltable[key])
             elif nav in self._urltable:
                 open_url(self._urltable[nav])
+            elif '-' in nav:
+                try:
+                    vals = [int(x) for x in nav.split('-')]
+                    if (len(vals) != 2):
+                        printerr('Invalid range %s.' % nav)
+                        continue
+
+                    if vals[0] > vals[1]:
+                        vals[0], vals[1] = vals[1], vals[0]
+
+                    for _id in xrange(vals[0], vals[1] + 1):
+                        if unicode(_id) in self._urltable:
+                            open_url(self._urltable[unicode(_id)])
+                        else:
+                            printerr('Invalid index %s.' % _id)
+                except ValueError:
+                    printerr('Invalid range %s.' % nav)
             else:
-                printerr(u'Invalid index %s.' % nav)
+                printerr('Invalid index %s.' % nav)
 
     @require_keywords
     @no_argument
@@ -1952,11 +1985,11 @@ class GooglerCmd(object):
         self.fetch_and_display()
 
     def cmdloop(self):
-        u"""Run REPL."""
+        """Run REPL."""
         if self.keywords:
             self.fetch_and_display()
         else:
-            printerr(u'Please initiate a query.')
+            printerr('Please initiate a query.')
 
         while True:
             self.read_next_command()
@@ -1968,49 +2001,50 @@ class GooglerCmd(object):
             # `no_argument' decorator.
             try:
                 cmd = self.cmd
-                if cmd == u'f':
-                    self.do_first(u'')
-                elif cmd.startswith(u'g '):
+                if cmd == 'f':
+                    self.do_first('')
+                elif cmd.startswith('g '):
                     self.do_google(cmd[2:])
-                elif cmd == u'n':
-                    self.do_next(u'')
-                elif cmd == u'o':
+                elif cmd == 'n':
+                    self.do_next('')
+                elif cmd == 'o':
                     self.do_open()
-                elif cmd.startswith(u'o '):
+                elif cmd.startswith('o '):
                     self.do_open(*cmd[2:].split())
-                elif cmd == u'p':
-                    self.do_previous(u'')
-                elif cmd == u'q':
+                elif cmd == 'p':
+                    self.do_previous('')
+                elif cmd == 'q':
                     break
-                elif cmd == u'x':
-                    self.do_exact(u'')
-                elif cmd == u'unfilter':
-                    self.do_unfilter(u'')
-                elif cmd == u'?':
+                elif cmd == 'x':
+                    self.do_exact('')
+                elif cmd == 'unfilter':
+                    self.do_unfilter('')
+                elif cmd == '?':
                     self.help()
                 elif cmd in self._urltable:
                     open_url(self._urltable[cmd])
                 elif self.keywords and cmd.isdigit() and int(cmd) < 100:
-                    printerr(u'Index out of bound. To search for the number, use g.')
+                    printerr('Index out of bound. To search for the number, use g.')
                 else:
                     self.do_google(cmd)
             except NoKeywordsException:
-                printerr(u'Initiate a query first.')
+                printerr('Initiate a query first.')
 
 
 class GooglerArgumentParser(argparse.ArgumentParser):
-    u"""Custom argument parser for googler."""
+    """Custom argument parser for googler."""
 
     # Print omniprompt help
     @staticmethod
     def print_omniprompt_help(file=None):
         file = sys.stderr if file is None else file
-        file.write(textwrap.dedent(u"""
+        file.write(textwrap.dedent("""
         omniprompt keys:
           n, p                  fetch the next or previous set of search results
           index                 open the result corresponding to index in browser
           f                     jump to the first page
-          o [index ...] [a]     open space-separated result indices, or all, in browser
+          o [index|range|a ...] open space-separated result indices, numeric ranges
+                                (sitelinks unsupported in ranges), or all, in browser
                                 open the current search in browser, if no arguments
           g keywords            new Google search for 'keywords' with original options
                                 should be used to search omniprompt keys and indices
@@ -2023,7 +2057,7 @@ class GooglerArgumentParser(argparse.ArgumentParser):
     @staticmethod
     def print_general_info(file=None):
         file = sys.stderr if file is None else file
-        file.write(textwrap.dedent(u"""
+        file.write(textwrap.dedent("""
         Version %s
         Copyright © 2008 Henri Hakkinen
         Copyright © 2015-2017 Arun Prakash Jana <engineerarun@gmail.com>
@@ -2040,67 +2074,67 @@ class GooglerArgumentParser(argparse.ArgumentParser):
 
     # Automatically print full help text on error
     def error(self, message):
-        sys.stderr.write(u'%s: error: %s\n\n' % (self.prog, message))
+        sys.stderr.write('%s: error: %s\n\n' % (self.prog, message))
         self.print_help(sys.stderr)
         self.exit(2)
 
     # Type guards
     @staticmethod
     def positive_int(arg):
-        u"""Try to convert a string into a positive integer."""
+        """Try to convert a string into a positive integer."""
         try:
             n = int(arg)
             assert n > 0
             return n
         except (ValueError, AssertionError):
-            raise argparse.ArgumentTypeError(u'%s is not a positive integer' % arg)
+            raise argparse.ArgumentTypeError('%s is not a positive integer' % arg)
 
     @staticmethod
     def nonnegative_int(arg):
-        u"""Try to convert a string into a nonnegative integer."""
+        """Try to convert a string into a nonnegative integer."""
         try:
             n = int(arg)
             assert n >= 0
             return n
         except (ValueError, AssertionError):
-            raise argparse.ArgumentTypeError(u'%s is not a non-negative integer' % arg)
+            raise argparse.ArgumentTypeError('%s is not a non-negative integer' % arg)
 
     @staticmethod
     def is_duration(arg):
-        u"""Check if a string is a valid duration accepted by Google.
+        """Check if a string is a valid duration accepted by Google.
 
         A valid duration is of the form dNUM, where d is a single letter h
         (hour), d (day), w (week), m (month), or y (year), and NUM is a
         non-negative integer.
         """
         try:
-            if arg[0] not in (u'h', u'd', u'w', u'm', u'y') or int(arg[1:]) < 0:
+            if arg[0] not in ('h', 'd', 'w', 'm', 'y') or int(arg[1:]) < 0:
                 raise ValueError
         except (TypeError, IndexError, ValueError):
-            raise argparse.ArgumentTypeError(u'%s is not a valid duration' % arg)
+            raise argparse.ArgumentTypeError('%s is not a valid duration' % arg)
         return arg
 
     @staticmethod
     def is_colorstr(arg):
-        u"""Check if a string is a valid color string."""
+        """Check if a string is a valid color string."""
         try:
             assert len(arg) == 6
             for c in arg:
                 assert c in COLORMAP
         except AssertionError:
-            raise argparse.ArgumentTypeError(u'%s is not a valid color string' % arg)
+            raise argparse.ArgumentTypeError('%s is not a valid color string' % arg)
         return arg
 
 
 # Self-upgrade mechanism
 
 def system_is_windows():
-    u"""Checks if the underlying system is Windows (Cygwin included)."""
-    return sys.platform in set([u'win32', u'cygwin'])
+    """Checks if the underlying system is Windows (Cygwin included)."""
+    return sys.platform in {'win32', 'cygwin'}
 
 
 def download_latest_googler(include_git=False):
-    u"""Download latest googler to a temp file.
+    """Download latest googler to a temp file.
 
     By default, the latest released version is downloaded, but if
     `include_git` is specified, then the latest git master is downloaded
@@ -2119,35 +2153,34 @@ def download_latest_googler(include_git=False):
          file.
 
     """
-
     if include_git:
         # Get SHA of latest commit on master
-        request = urllib2.Request(u'%s/commits/master' % API_REPO_BASE,
-                                         headers={u'Accept': u'application/vnd.github.v3.sha'})
+        request = urllib2.Request('%s/commits/master' % API_REPO_BASE,
+                                         headers={'Accept': 'application/vnd.github.v3.sha'})
         response = urllib2.urlopen(request)
         if response.status != 200:
             raise httplib.HTTPException(response.reason)
-        git_ref = response.read().decode(u'utf-8')
+        git_ref = response.read().decode('utf-8')
     else:
         # Get name of latest tag
-        request = urllib2.Request(u'%s/releases?per_page=1' % API_REPO_BASE,
-                                         headers={u'Accept': u'application/vnd.github.v3+json'})
+        request = urllib2.Request('%s/releases?per_page=1' % API_REPO_BASE,
+                                         headers={'Accept': 'application/vnd.github.v3+json'})
         response = urllib2.urlopen(request)
         if response.status != 200:
             raise httplib.HTTPException(response.reason)
         import json
-        git_ref = json.loads(response.read().decode(u'utf-8'))[0][u'tag_name']
+        git_ref = json.loads(response.read().decode('utf-8'))[0]['tag_name']
 
     # Download googler to a tempfile
-    googler_download_url = u'%s/%s/googler' % (RAW_DOWNLOAD_REPO_BASE, git_ref)
-    printerr(u'Downloading %s' % googler_download_url)
+    googler_download_url = '%s/%s/googler' % (RAW_DOWNLOAD_REPO_BASE, git_ref)
+    printerr('Downloading %s' % googler_download_url)
     request = urllib2.Request(googler_download_url,
-                                     headers={u'Accept-Encoding': u'gzip'})
+                                     headers={'Accept-Encoding': 'gzip'})
     import tempfile
     fd, path = tempfile.mkstemp()
     atexit.register(lambda: os.remove(path) if os.path.exists(path) else None)
     os.close(fd)
-    with open(path, u'wb') as fp:
+    with open(path, 'wb') as fp:
         with urllib2.urlopen(request) as response:
             if response.status != 200:
                 raise httplib.HTTPException(response.reason)
@@ -2160,7 +2193,7 @@ def download_latest_googler(include_git=False):
 
 
 def self_replace(path):
-    u"""Replace the current script with a specified file.
+    """Replace the current script with a specified file.
 
     Both paths (the specified path and path to the current script) are
     resolved to absolute, symlink-free paths. Upon replacement, the
@@ -2183,7 +2216,7 @@ def self_replace(path):
 
     """
     if system_is_windows():
-        raise NotImplementedError(u'Self upgrade not supported on Windows.')
+        raise NotImplementedError('Self upgrade not supported on Windows.')
 
     import filecmp
     import shutil
@@ -2203,7 +2236,7 @@ def self_replace(path):
 
 
 def self_upgrade(include_git=False):
-    u"""Perform in-place self-upgrade.
+    """Perform in-place self-upgrade.
 
     Parameters
     ----------
@@ -2213,28 +2246,94 @@ def self_upgrade(include_git=False):
     """
     git_ref, path = download_latest_googler(include_git=include_git)
     if self_replace(path):
-        printerr(u'Upgraded to %s.' % git_ref)
+        printerr('Upgraded to %s.' % git_ref)
     else:
-        printerr(u'Already up to date.')
+        printerr('Already up to date.')
 
 
 # Miscellaneous functions
 
+def python_version():
+    return '%d.%d.%d' % sys.version_info[:3]
+
+
 def https_proxy_from_environment():
-    if u'https_proxy' not in os.environ:
-        return None
-    proxy = urlparse.urlparse(os.environ[u'https_proxy']).netloc
-    # urlparse recognizes a netloc only if it is introduced by '//'
-    # (https://docs.python.org/3/library/urllib.parse.html#urllib.parse.urlparse).
-    # This means a bare host:port like 'localhost:8118' won't be
-    # recognized. In that case, try again with the '//' prefix.
-    if not proxy:
-        proxy = urlparse.urlparse(u'//' + os.environ[u'https_proxy']).netloc
-    return proxy if proxy else None
+    return os.getenv('https_proxy')
+
+
+def parse_proxy_spec(proxyspec):
+    if '://' in proxyspec:
+        pos = proxyspec.find('://')
+        scheme = proxyspec[:pos]
+        proxyspec = proxyspec[pos+3:]
+        if scheme.lower() != 'http':
+            # Only support HTTP proxies.
+            #
+            # In particular, we don't support HTTPS proxies since we
+            # only speak plain HTTP to the proxy server, so don't give
+            # users a false sense of security.
+            raise NotImplementedError('Unsupported proxy scheme %s.' % scheme)
+
+    if '@' in proxyspec:
+        pos = proxyspec.find('@')
+        user_passwd = urllib.unquote(proxyspec[:pos])
+        host_port = proxyspec[pos+1:]
+    else:
+        user_passwd = None
+        host_port = proxyspec
+
+    if ':' not in host_port:
+        # Use port 1080 as default, following curl.
+        host_port += ':1080'
+
+    return user_passwd, host_port
+
+
+# Query autocompleter
+
+# This function is largely experimental and could raise any exception;
+# you should be prepared to catch anything. When it works though, it
+# returns a list of strings the prefix could autocomplete to (however,
+# it is not guaranteed that they start with the specified prefix; for
+# instance, they won't if the specified prefix ends in a punctuation
+# mark.)
+def completer_fetch_completions(prefix):
+    import json
+    import re
+
+    # One can pass the 'hl' query param to specify the language. We
+    # ignore that for now.
+    api_url = ('https://www.google.com/complete/search?client=psy-ab&q=%s' %
+               urllib.quote(prefix, safe=''))
+    # A timeout of 3 seconds seems to be overly generous already.
+    resp = urllib2.urlopen(api_url, timeout=3)
+    respobj = json.loads(resp.read().decode('utf-8'))
+
+    # The response object, once parsed as JSON, should look like
+    #
+    # ['git',
+    #  [['git<b>hub</b>', 0],
+    #   ['git', 0],
+    #   ['git<b>lab</b>', 0],
+    #   ['git<b> stash</b>', 0]],
+    #  {'q': 'oooAhRzoChqNmMbNaaDKXk1YY4k', 't': {'bpc': False, 'tlw': False}}]
+    #
+    # Note the each result entry need not have two members; e.g., for
+    # 'gi', there is an entry ['gi<b>f</b>', 0, [131]].
+    HTML_TAG = re.compile(r'<[^>]+>')
+    return [HTML_TAG.sub('', entry[0]) for entry in respobj[1]]
+
+
+def completer_run(prefix):
+    if prefix:
+        completions = completer_fetch_completions(prefix)
+        if completions:
+            print '\n'.join(completions)
+    sys.exit(0)
 
 
 def parse_args(args=None, namespace=None):
-    u"""Parse googler arguments/options.
+    """Parse googler arguments/options.
 
     Parameters
     ----------
@@ -2250,53 +2349,56 @@ def parse_args(args=None, namespace=None):
 
     """
 
-    colorstr_env = os.getenv(u'GOOGLER_COLORS')
+    colorstr_env = os.getenv('GOOGLER_COLORS')
 
-    argparser = GooglerArgumentParser(description=u'Google from the command-line.')
+    argparser = GooglerArgumentParser(description='Google from the command-line.')
     addarg = argparser.add_argument
-    addarg(u'-s', u'--start', type=argparser.nonnegative_int, default=0,
-           metavar=u'N', help=u'start at the Nth result')
-    addarg(u'-n', u'--count', dest=u'num', type=argparser.positive_int,
-           default=10, metavar=u'N', help=u'show N results (default 10)')
-    addarg(u'-N', u'--news', action=u'store_true',
-           help=u'show results from news section')
-    addarg(u'-c', u'--tld', metavar=u'TLD',
-           help=u"""country-specific search with top-level domain .TLD, e.g., 'in'
+    addarg('-s', '--start', type=argparser.nonnegative_int, default=0,
+           metavar='N', help='start at the Nth result')
+    addarg('-n', '--count', dest='num', type=argparser.positive_int,
+           default=10, metavar='N', help='show N results (default 10)')
+    addarg('-N', '--news', action='store_true',
+           help='show results from news section')
+    addarg('-c', '--tld', metavar='TLD',
+           help="""country-specific search with top-level domain .TLD, e.g., 'in'
            for India. Ref: https://en.wikipedia.org/wiki/List_of_Google_domains""")
-    addarg(u'-l', u'--lang', metavar=u'LANG', help=u'display in language LANG')
-    addarg(u'-x', u'--exact', action=u'store_true',
-           help=u'disable automatic spelling correction')
-    addarg(u'-C', u'--nocolor', dest=u'colorize', action=u'store_false',
-           help=u'disable color output')
-    addarg(u'--colors', dest=u'colorstr', type=argparser.is_colorstr,
-           default=colorstr_env if colorstr_env else u'GKlgxy', metavar=u'COLORS',
-           help=u'set output colors (see man page for details)')
-    addarg(u'-j', u'--first', u'--lucky', dest=u'lucky', action=u'store_true',
-           help=u'open the first result in web browser and exit')
-    addarg(u'-t', u'--time', dest=u'duration', type=argparser.is_duration,
-           metavar=u'dN', help=u'time limit search '
-           u'[h5 (5 hrs), d5 (5 days), w5 (5 weeks), m5 (5 months), y5 (5 years)]')
-    addarg(u'-w', u'--site', dest=u'sites', action=u'append', metavar=u'SITE',
-           help=u'search a site using Google')
-    addarg(u'-p', u'--proxy', default=https_proxy_from_environment(),
-           help=u'tunnel traffic through an HTTPS proxy (HOST:PORT)')
-    addarg(u'--noua', action=u'store_true', help=u'disable user agent')
-    addarg(u'--notweak', action=u'store_true',
-           help=u'disable TCP optimizations and forced TLS 1.2')
-    addarg(u'--json', action=u'store_true',
-           help=u'output in JSON format; implies --exact and --noprompt')
-    addarg(u'--show-browser-logs', action=u'store_true',
-           help=u'do not suppress browser output (stdout and stderr)')
-    addarg(u'--np', u'--noprompt', dest=u'noninteractive', action=u'store_true',
-           help=u'search and exit, do not prompt')
-    addarg(u'keywords', nargs=u'*', metavar=u'KEYWORD', help=u'search keywords')
+    addarg('-l', '--lang', metavar='LANG', help='display in language LANG')
+    addarg('-x', '--exact', action='store_true',
+           help='disable automatic spelling correction')
+    addarg('-C', '--nocolor', dest='colorize', action='store_false',
+           help='disable color output')
+    addarg('--colors', dest='colorstr', type=argparser.is_colorstr,
+           default=colorstr_env if colorstr_env else 'GKlgxy', metavar='COLORS',
+           help='set output colors (see man page for details)')
+    addarg('-j', '--first', '--lucky', dest='lucky', action='store_true',
+           help='open the first result in web browser and exit')
+    addarg('-t', '--time', dest='duration', type=argparser.is_duration,
+           metavar='dN', help='time limit search '
+           '[h5 (5 hrs), d5 (5 days), w5 (5 weeks), m5 (5 months), y5 (5 years)]')
+    addarg('-w', '--site', dest='sites', action='append', metavar='SITE',
+           help='search a site using Google')
+    addarg('--unfilter', action='store_true', help='do not omit similar results')
+    addarg('-p', '--proxy', default=https_proxy_from_environment(),
+           help="""tunnel traffic through an HTTP proxy;
+           PROXY is of the form [http://][user:password@]proxyhost[:port]""")
+    addarg('--noua', action='store_true', help='disable user agent')
+    addarg('--notweak', action='store_true',
+           help='disable TCP optimizations and forced TLS 1.2')
+    addarg('--json', action='store_true',
+           help='output in JSON format; implies --noprompt')
+    addarg('--show-browser-logs', action='store_true',
+           help='do not suppress browser output (stdout and stderr)')
+    addarg('--np', '--noprompt', dest='noninteractive', action='store_true',
+           help='search and exit, do not prompt')
+    addarg('keywords', nargs='*', metavar='KEYWORD', help='search keywords')
     if ENABLE_SELF_UPGRADE_MECHANISM and not system_is_windows():
-        addarg(u'-u', u'--upgrade', action=u'store_true',
-               help=u'perform in-place self-upgrade')
-        addarg(u'--include-git', action=u'store_true',
-               help=u'when used with --upgrade, upgrade to latest git master')
-    addarg(u'-v', u'--version', action=u'version', version=_VERSION_)
-    addarg(u'-d', u'--debug', action=u'store_true', help=u'enable debugging')
+        addarg('-u', '--upgrade', action='store_true',
+               help='perform in-place self-upgrade')
+        addarg('--include-git', action='store_true',
+               help='when used with --upgrade, upgrade to latest git master')
+    addarg('-v', '--version', action='version', version=_VERSION_)
+    addarg('-d', '--debug', action='store_true', help='enable debugging')
+    addarg('--complete', help=argparse.SUPPRESS)
 
     return argparser.parse_args(args, namespace)
 
@@ -2307,17 +2409,18 @@ def main():
     try:
         opts = parse_args()
 
-        # --json implies --exact
-        if opts.json:
-            opts.exact = True
-
         # Set logging level
         if opts.debug:
             logger.setLevel(logging.DEBUG)
-            logger.debug(u'Version %s', _VERSION_)
+            logger.debug('googler version %s', _VERSION_)
+            logger.debug('Python version %s', python_version())
+
+        # Handle query completer
+        if opts.complete is not None:
+            completer_run(opts.complete)
 
         # Handle self-upgrade
-        if hasattr(opts, u'upgrade') and opts.upgrade:
+        if hasattr(opts, 'upgrade') and opts.upgrade:
             self_upgrade(include_git=opts.include_git)
             sys.exit(0)
 
@@ -2326,13 +2429,13 @@ def main():
         if opts.keywords:
             try:
                 # Add cmdline args to readline history
-                readline.add_history(u' '.join(opts.keywords))
+                readline.add_history(' '.join(opts.keywords))
             except Exception:
                 pass
 
         # Set colors
         if opts.colorize:
-            colors = Colors(*[COLORMAP[c] for c in opts.colorstr], reset=COLORMAP[u'x'])
+            colors = Colors(*[COLORMAP[c] for c in opts.colorstr], reset=COLORMAP['x'])
         else:
             colors = None
         Result.colors = colors
@@ -2343,7 +2446,7 @@ def main():
             open_url.suppress_browser_output = False
 
         if opts.noua:
-            logger.debug(u'User Agent is disabled')
+            logger.debug('User Agent is disabled')
             ua = False
 
         repl = GooglerCmd(opts)
@@ -2355,9 +2458,9 @@ def main():
                 if repl.results:
                     open_url(repl.results[0].url)
                 else:
-                    print >>sys.stderr, u'No results.'
+                    print >>sys.stderr, 'No results.'
             else:
-                repl.display_results(prelude=u'', json_output=opts.json)
+                repl.display_results(prelude='', json_output=opts.json)
             sys.exit(0)
         else:
             # Interactive mode
@@ -2371,5 +2474,5 @@ def main():
             logger.error(e)
             sys.exit(1)
 
-if __name__ == u'__main__':
+if __name__ == '__main__':
     main()
